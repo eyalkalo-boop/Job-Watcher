@@ -1,0 +1,39 @@
+name: Daily job watcher
+
+on:
+  schedule:
+    - cron: "0 5 * * *"     # runs at 05:00 UTC = about 08:00 in Israel
+  workflow_dispatch:          # adds a "Run" button so you can test it anytime
+
+permissions:
+  contents: write
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          python -m playwright install --with-deps chromium
+
+      - name: Run the agent
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+        run: python main.py
+
+      - name: Save the agent's memory and job page
+        run: |
+          git config user.name "job-watcher-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add seen_jobs.json index.html
+          git commit -m "Update jobs" || echo "nothing to commit"
+          git push
